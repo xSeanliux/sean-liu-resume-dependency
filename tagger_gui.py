@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QPushButton
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QPoint
 from PyQt6 import QtGui
 from tagger_program import get_file_name
 from annotation_object import AnnotationObject, deserialize, serialize
@@ -68,9 +68,6 @@ class SinglePageDisplay(QWidget):
         self.setLayout(layout)
 
     def draw_page(self, index: int = 0, colour: QtGui.QColor = QtGui.QColor("blue")):
-        
-        
-
         element = anno.json_format[index] if index >= 0 else anno.json_format[0]
         page_idx = element['page']
 
@@ -86,15 +83,17 @@ class SinglePageDisplay(QWidget):
 
         painter.drawImage(0, 0, scaledImage)
 
-        #ToDo: mark ROOT
-        
+
+
         # highlighting
         painter.setPen(QtGui.QColor.fromHsvF(0, 0, 0, 0)) #no boundary on highlights
-        for i in range(index, anno.n_lines):
+        for i in range(max(0, index), anno.n_lines):
             d = anno.depth[i]
             element_ = anno.json_format[i]
-            if(d == -1 or element_['page'] != page_idx):
+            if(element_['page'] != page_idx):
                 break 
+            if(d == -1):
+                continue
             painter.setBrush(QtGui.QColor.fromHsvF(d/10, 0.8, 0.8, 0.1)) #assuming that the max. dep does not go over 10
             
             x_, y_, width_, height_ = element_['x'], element_['y'], element_['width'], element_['height']
@@ -106,8 +105,10 @@ class SinglePageDisplay(QWidget):
         for i in range(index - 1, -1, -1):
             d = anno.depth[i]
             element_ = anno.json_format[i]
-            if(d == -1 or element_['page'] != page_idx):
+            if(element_['page'] != page_idx):
                 break 
+            if(d == -1):
+                continue
             painter.setBrush(QtGui.QColor.fromHsvF(d/10, 0.8, 0.8, 0.1)) #assuming that the max. dep does not go over 10
             
             x_, y_, width_, height_ = element_['x'], element_['y'], element_['width'], element_['height']
@@ -117,13 +118,26 @@ class SinglePageDisplay(QWidget):
             height_ = round(height_ * self.height / 100)
             painter.drawRect(x_, y_, width_, height_)
 
+        x = y = width = height = None
         painter.setBrush(QtGui.QColor.fromHsvF(0, 0, 0, 0))
         painter.setPen(colour)
-        x, y, width, height = element['x'], element['y'], element['width'], element['height']
-        x = round(x * self.width / 100)
-        y = round(y * self.height / 100)
-        width = round(width * self.width / 100)
-        height = round(height * self.height / 100)
+
+        if(page_idx == 0):
+            font_sz = 30
+            x, y, width, height = round(self.width * 0.4), round(self.height * 0.05), font_sz * 5, font_sz
+            font = painter.font()
+            font.setPixelSize(font_sz)
+            painter.setFont(font)
+            painter.drawText(QPoint(x, y + height), "$ROOT")
+
+        if(index >= 0):
+            painter.setPen(colour)
+            x, y, width, height = element['x'], element['y'], element['width'], element['height']
+            x = round(x * self.width / 100)
+            y = round(y * self.height / 100)
+            width = round(width * self.width / 100)
+            height = round(height * self.height / 100)
+
         painter.drawRect(x, y, width, height)
         painter.end()
         self.label.setPixmap(canvas)
@@ -212,8 +226,10 @@ if __name__ == "__main__":
     # Pass in sys.argv to allow command line arguments for your app.
     # If you know you won't use command line arguments QApplication([]) works too.
     
-    file_name, pdf_file_path = get_file_name()
-    init_anno(pdf_file_path = pdf_file_path)
+    # file_name, pdf_file_path = get_file_name()
+    # init_anno(pdf_file_path = pdf_file_path)    
+    init_anno(pdf_file_path = "data/pdf/cv_7.pdf")
+
     assert anno is not None
     app = QApplication(sys.argv)
     # Create a Qt widget, which will be our window.
