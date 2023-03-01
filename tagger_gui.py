@@ -178,7 +178,7 @@ if __name__ == "__main__":
     # Pass in sys.argv to allow command line arguments for your app.
     # If you know you won't use command line arguments QApplication([]) works too.
     app = QApplication(sys.argv)
-    init_anno(pdf_file_path = "/Users/liusean/Desktop/Projects/Coding/ML/ForwardLab/SP23/data/pdf/cv_7.pdf")
+    init_anno(pdf_file_path = "./data/pdf/cv_7.pdf")
     # Create a Qt widget, which will be our window.
     assert anno is not None
     window = MainWindow()
