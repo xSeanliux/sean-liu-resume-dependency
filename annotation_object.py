@@ -8,7 +8,7 @@ import os
 def serialize(anno_object):
     print(f"Serializing... {anno_object}")
     if anno_object is not None:
-        pkl_file_name = anno_object.file_path[:-2] + "kl"
+        pkl_file_name = anno_object.file_path.replace("pdf", "pkl")
         with open(pkl_file_name, "wb") as handle:
             pkl.dump(anno_object, handle)
             print(f"Dumped to {pkl_file_name}.")

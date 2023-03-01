@@ -35,11 +35,11 @@ def init_anno(pdf_file_path):
     global anno 
     anno = AnnotationObject()
     print("FILEPATH WAS", pdf_file_path)
-    file_path = pdf_file_path[:-2] + "kl"
-    print("FILEPATH =", file_path)
-    if os.path.exists(file_path):
-        print(f"{file_path}.pkl exists. Loading.")
-        anno = deserialize(file_path)
+    pkl_file_path = pdf_file_path.replace("pdf", "pkl")
+    print("FILEPATH =", pkl_file_path)
+    if os.path.exists(pkl_file_path):
+        print(f"{pkl_file_path} exists. Loading.")
+        anno = deserialize(pkl_file_path)
         print(f"Finished loading. Starting from index {anno.current_idx}")
     else:
         print("Loading from file path.")
@@ -177,8 +177,10 @@ if __name__ == "__main__":
     # You need one (and only one) QApplication instance per application.
     # Pass in sys.argv to allow command line arguments for your app.
     # If you know you won't use command line arguments QApplication([]) works too.
+    
+    file_name, pdf_file_path = get_file_name()
+    init_anno(pdf_file_path = pdf_file_path)
     app = QApplication(sys.argv)
-    init_anno(pdf_file_path = "./data/pdf/cv_7.pdf")
     # Create a Qt widget, which will be our window.
     assert anno is not None
     window = MainWindow()
