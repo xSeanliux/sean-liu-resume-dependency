@@ -88,8 +88,6 @@ class PDFWrapper:
         return ax
     
     def get_ydiff_distribution(self):
-
-    
         # @param objs: a 2D array (n_pages, n_elements). 
         # @return: a list of all the y-differences collected per page and then aggregated.
 
@@ -117,7 +115,7 @@ class PDFWrapper:
         # gets the JSON content as a string from wrapper_obj
         lines = self.get_lines()
         annotations = []
-        for n_page, page_line in enumerate(lines[:2]): 
+        for n_page, page_line in enumerate(lines): 
             for i, line in enumerate(page_line):
                 x0, y0, width, height = self.get_bounding_box(line)
                 x, y, width_t, height_t = convert_to_ls(x0, y0, width, height, self.page_width, self.page_height)
