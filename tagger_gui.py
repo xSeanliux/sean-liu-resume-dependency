@@ -69,10 +69,9 @@ class SinglePageDisplay(QWidget):
 
     def draw_page(self, index: int = 0, colour: QtGui.QColor = QtGui.QColor("blue")):
         
-        if(index < 0):
-            index = 0
+        
 
-        element = anno.json_format[index]
+        element = anno.json_format[index] if index >= 0 else anno.json_format[0]
         page_idx = element['page']
 
         canvas = self.label.pixmap()
@@ -86,6 +85,8 @@ class SinglePageDisplay(QWidget):
         scaledImage.setDevicePixelRatio(self.pixelRatio)
 
         painter.drawImage(0, 0, scaledImage)
+
+        #ToDo: mark ROOT
         
         # highlighting
         painter.setPen(QtGui.QColor.fromHsvF(0, 0, 0, 0)) #no boundary on highlights
@@ -116,6 +117,7 @@ class SinglePageDisplay(QWidget):
             height_ = round(height_ * self.height / 100)
             painter.drawRect(x_, y_, width_, height_)
 
+        painter.setBrush(QtGui.QColor.fromHsvF(0, 0, 0, 0))
         painter.setPen(colour)
         x, y, width, height = element['x'], element['y'], element['width'], element['height']
         x = round(x * self.width / 100)
