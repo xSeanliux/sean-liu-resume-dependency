@@ -37,12 +37,11 @@ class AnnotationObject:
     #     'to': (number, index)
     #     type: string, one of ('subordinate', 'merge', 'pop')
     # }
-    current_idx = 0
+    current_idx = 0 # current_idx: the current object being processed
     n_lines = 0
-    # current_idx: the current object being processed
-    stack = []
-    # stack is the stack being used, records the indices only, -1 is root
+    stack = [] # stack is the stack being used, records the indices only, -1 is root
     qt_image_list = None
+    
     def subordinate_action(self):
         if(self.is_done):
             return
@@ -100,6 +99,7 @@ class AnnotationObject:
         self.depth[self.current_idx] = -1
         self.current_idx += 1
         self.is_done = (self.current_idx == self.n_lines)
+    
     def undo(self):
         if(len(self.record) == 0):
             print("Unable to undo as there are currently no recorded actions.")
