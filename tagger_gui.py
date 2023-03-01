@@ -23,10 +23,10 @@ dots_per_meter = None
 def save_and_exit():
     print("Exiting. Saving file.")
     if anno is not None:
-        print(f"Size of anno is {sys.getsizeof(anno.__dict__)}")
+        # print(f"Size of anno is {sys.getsizeof(anno.__dict__)}")
         serialize(anno)
     else:
-        print("Anno is none!")
+        print("Anno is None!")
     return
 atexit.register(save_and_exit)
 
@@ -34,9 +34,9 @@ def init_anno(pdf_file_path):
     assert len(pdf_file_path) > 4 and pdf_file_path[-4:] == ".pdf"
     global anno 
     anno = AnnotationObject()
-    print("FILEPATH WAS", pdf_file_path)
+    # print("FILEPATH WAS", pdf_file_path)
     pkl_file_path = pdf_file_path.replace("pdf", "pkl")
-    print("FILEPATH =", pkl_file_path)
+    # print("FILEPATH =", pkl_file_path)
     if os.path.exists(pkl_file_path):
         print(f"{pkl_file_path} exists. Loading.")
         anno = deserialize(pkl_file_path)
@@ -67,18 +67,16 @@ class SinglePageDisplay(QWidget):
         layout.addWidget(self.label)
         self.setLayout(layout)
 
-    def draw_page(self, index: int = 1, colour: QtGui.QColor = QtGui.QColor("blue")):
+    def draw_page(self, index: int = 0, colour: QtGui.QColor = QtGui.QColor("blue")):
+        
+        if(index < 0):
+            index = 0
+
         element = anno.json_format[index]
+        page_idx = element['page']
 
         canvas = self.label.pixmap()
         painter = QtGui.QPainter(canvas)
-
-        page_idx = element['page']
-        x, y, width, height = element['x'], element['y'], element['width'], element['height']
-        x = round(x * self.width / 100)
-        y = round(y * self.height / 100)
-        width = round(width * self.width / 100)
-        height = round(height * self.height / 100)
 
         scaledImage = anno.qt_image_list[page_idx].scaled(
             int(self.width * self.pixelRatio),
@@ -86,10 +84,44 @@ class SinglePageDisplay(QWidget):
             aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio
         )
         scaledImage.setDevicePixelRatio(self.pixelRatio)
-        painter.drawImage(0, 0, scaledImage)
 
-        if colour is not None:
-            painter.setPen(colour)
+        painter.drawImage(0, 0, scaledImage)
+        
+        # highlighting
+        painter.setPen(QtGui.QColor.fromHsvF(0, 0, 0, 0)) #no boundary on highlights
+        for i in range(index, anno.n_lines):
+            d = anno.depth[i]
+            element_ = anno.json_format[i]
+            if(d == -1 or element_['page'] != page_idx):
+                break 
+            painter.setBrush(QtGui.QColor.fromHsvF(d/10, 0.8, 0.8, 0.1)) #assuming that the max. dep does not go over 10
+            
+            x_, y_, width_, height_ = element_['x'], element_['y'], element_['width'], element_['height']
+            x_ = round(x_ * self.width / 100)
+            y_ = round(y_ * self.height / 100)
+            width_= round(width_ * self.width / 100)
+            height_ = round(height_ * self.height / 100)
+            painter.drawRect(x_, y_, width_, height_)
+        for i in range(index - 1, -1, -1):
+            d = anno.depth[i]
+            element_ = anno.json_format[i]
+            if(d == -1 or element_['page'] != page_idx):
+                break 
+            painter.setBrush(QtGui.QColor.fromHsvF(d/10, 0.8, 0.8, 0.1)) #assuming that the max. dep does not go over 10
+            
+            x_, y_, width_, height_ = element_['x'], element_['y'], element_['width'], element_['height']
+            x_ = round(x_ * self.width / 100)
+            y_ = round(y_ * self.height / 100)
+            width_= round(width_ * self.width / 100)
+            height_ = round(height_ * self.height / 100)
+            painter.drawRect(x_, y_, width_, height_)
+
+        painter.setPen(colour)
+        x, y, width, height = element['x'], element['y'], element['width'], element['height']
+        x = round(x * self.width / 100)
+        y = round(y * self.height / 100)
+        width = round(width * self.width / 100)
+        height = round(height * self.height / 100)
         painter.drawRect(x, y, width, height)
         painter.end()
         self.label.setPixmap(canvas)
@@ -180,9 +212,10 @@ if __name__ == "__main__":
     
     file_name, pdf_file_path = get_file_name()
     init_anno(pdf_file_path = pdf_file_path)
+    assert anno is not None
     app = QApplication(sys.argv)
     # Create a Qt widget, which will be our window.
-    assert anno is not None
+    
     window = MainWindow()
     window.show()  # IMPORTANT!!!!! Windows are hidden by default.
 

@@ -27,6 +27,7 @@ def deserialize(pkl_file_path):
 class AnnotationObject: 
     file_path = None
     record = []
+    depth = []
     wrapper = None
     json_format = None
     is_done = False
@@ -36,7 +37,7 @@ class AnnotationObject:
     #     'to': (number, index)
     #     type: string, one of ('subordinate', 'merge', 'pop')
     # }
-    current_idx = 1
+    current_idx = 0
     n_lines = 0
     # current_idx: the current object being processed
     stack = []
@@ -51,12 +52,18 @@ class AnnotationObject:
             'to': self.stack[-1], 
             'type': 'subordinate' 
         })
+
+        self.depth[self.current_idx] = 0 if self.stack[-1] == -1 else self.depth[self.stack[-1]] + 1
+
         self.stack.append(self.current_idx)
         self.current_idx += 1
 
         self.is_done = (self.current_idx == self.n_lines)
+    
     def merge_action(self):
         if(self.is_done):
+            return
+        if(self.stack[-1] == -1):
             return
         
         self.record.append({ 
@@ -64,11 +71,13 @@ class AnnotationObject:
             'to': self.stack[-1], 
             'type': 'merge' 
         })
+        self.depth[self.current_idx] = self.depth[self.stack[-1]]
         self.stack.pop() # representative element is the last line of the whole entry
         self.stack.append(self.current_idx)
         self.current_idx += 1
 
         self.is_done = (self.current_idx == self.n_lines)
+
     def pop_action(self):
         if(len(self.stack) <= 1):
             print("Tried to pop ROOT or stack was empty.")
@@ -79,20 +88,6 @@ class AnnotationObject:
             'type': 'pop' 
         })
         self.stack.pop()
-    def undo(self):
-        if(len(self.record) == 0):
-            print("Unable to undo as there are currently no recorded actions.")
-            return
-        last_obj = self.record.pop()
-        if(last_obj['type'] != 'discard'):
-            self.stack.pop() 
-            
-        if(last_obj['type'] == 'pop'):
-            self.stack.append(last_obj['to'])
-        else:
-            self.current_idx -= 1
-
-        self.is_done = (self.current_idx == self.n_lines)
     
     def discard(self):
         if(self.is_done):
@@ -102,8 +97,31 @@ class AnnotationObject:
             'to': self.current_idx,
             'type': 'discard'
         })
+        self.depth[self.current_idx] = -1
         self.current_idx += 1
         self.is_done = (self.current_idx == self.n_lines)
+    def undo(self):
+        if(len(self.record) == 0):
+            print("Unable to undo as there are currently no recorded actions.")
+            return
+        last_obj = self.record.pop()
+        operation_type = last_obj['type']
+        if(operation_type == 'pop'):
+            self.stack.append(last_obj['to'])
+        else:
+            self.current_idx -= 1
+            self.depth[last_obj['from']] = -1
+
+        if(operation_type == 'merge'):
+            
+            self.stack.pop()
+            self.stack.append(last_obj['to'])
+        elif(operation_type == 'subordinate'):
+            self.stack.pop()
+            
+        self.is_done = (self.current_idx == self.n_lines)
+
+
     def get_prompt(self):
         top_element = self.json_format[self.stack[-1]]['text'] if self.stack[-1] != -1 else "ROOT"
         buffered_element = self.json_format[self.current_idx]['text'] if self.current_idx < self.n_lines else "END"
@@ -114,15 +132,17 @@ class AnnotationObject:
         if file_path_ is not None:
             self.file_path = file_path_
             self.record = []
-            self.stack = [0] #root, can only accept subordinate relations 
-            self.current_idx = 1
+            self.stack = [-1] #root, can only accept subordinate relations 
+            self.current_idx = 0
 
             self.wrapper = PDFWrapper(self.file_path)
             self.json_format = self.wrapper.get_json()
+            
             self.n_lines = len(self.json_format)
+            self.depth = [-1] * self.n_lines
             self.qt_image_list = [ImageQt(img) for img in self.wrapper.pil_image_list]
-            print(f"Size of one qt image: {sys.getsizeof(self.qt_image_list[0])}, PIL image size: {sys.getsizeof(self.wrapper.pil_image_list[0])}")
-
+            # print(f"Size of one qt image: {sys.getsizeof(self.qt_image_list[0])}, PIL image size: {sys.getsizeof(self.wrapper.pil_image_list[0])}")
+            print(f"Length of dep: {len(self.depth)}")
     def get_qt_and_box(self, line_idx):
         # @param line_idx: the index of the line being rendered, in the annotations
         if(line_idx == -1):
