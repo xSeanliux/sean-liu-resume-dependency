@@ -12,6 +12,7 @@ from pdfminer.layout import LAParams
 from PIL.ImageQt import ImageQt
 from PyQt6.QtGui import QImage
 from math import ceil
+import functools
 
 def convert_to_ls(x, y, width, height, original_width, original_height):
     return x / original_width * 100.0, y / original_height * 100.0, \
@@ -36,6 +37,15 @@ class PDFWrapper:
 
     pil_image_list = None # A list of PIL images
 
+    def line_cmp(self, l1, l2):
+        bbox1 = l1.bbox 
+        bbox2 = l2.bbox 
+        x1, y1 = bbox1[0], bbox1[1]
+        x2, y2 = bbox2[0], bbox2[1]
+        if abs(y1 - y2) < 5:
+            return x1 - x2
+        return y2 - y1 # higher y values are higher up and should be first
+
     def __init__(self, fname, laparams_ = LAParams(boxes_flow = None)):
 
         print("Using laparams = ", laparams_)
@@ -52,6 +62,9 @@ class PDFWrapper:
                             page_lines.append(line)
         
             self.elements.append(page_elements)
+
+            page_lines = sorted(page_lines, key = functools.cmp_to_key(self.line_cmp))
+
             self.lines.append(page_lines)
         
         self.pil_image_list = convert_from_path(fname, dpi = self.render_dpi) # This returns a list even for a 1 page pdf
