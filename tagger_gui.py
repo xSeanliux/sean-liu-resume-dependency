@@ -68,7 +68,14 @@ class SinglePageDisplay(QWidget):
         self.setLayout(layout)
 
     def draw_page(self, index: int = 0, colour: QtGui.QColor = QtGui.QColor("blue")):
-        element = anno.json_format[index] if index >= 0 else anno.json_format[0]
+
+        element = None
+        if(index < 0):
+            element = anno.json_format[0]
+        elif(index >= anno.n_lines):
+            element = anno.json_format[-1]
+        else:
+            element = anno.json_format[index]
         page_idx = element['page']
 
         canvas = self.label.pixmap()
@@ -226,9 +233,8 @@ if __name__ == "__main__":
     # Pass in sys.argv to allow command line arguments for your app.
     # If you know you won't use command line arguments QApplication([]) works too.
     
-    # file_name, pdf_file_path = get_file_name()
-    # init_anno(pdf_file_path = pdf_file_path)    
-    init_anno(pdf_file_path = "data/pdf/cv_7.pdf")
+    file_name, pdf_file_path = get_file_name()
+    init_anno(pdf_file_path = pdf_file_path)    
 
     assert anno is not None
     app = QApplication(sys.argv)
