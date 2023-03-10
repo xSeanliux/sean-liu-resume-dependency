@@ -130,4 +130,4 @@ dmypy.json
 .DS_Store
 
 # don't store pkl files 
-./pkl
+./data/pkl
