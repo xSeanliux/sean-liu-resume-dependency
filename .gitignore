@@ -129,6 +129,5 @@ dmypy.json
 .pyre/
 .DS_Store
 
-# don't store pkl files 
-./data/pkl/*
-.pkl
+# don't store anything in the data
+data/*
