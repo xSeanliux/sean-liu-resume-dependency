@@ -93,7 +93,7 @@ class AnnotationObject:
             return
         self.record.append({
             'from': self.current_idx,
-            'to': self.current_idx,
+            'to': self.stack[-1],
             'type': 'discard'
         })
         self.depth[self.current_idx] = -1
