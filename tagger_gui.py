@@ -67,7 +67,7 @@ class SinglePageDisplay(QWidget):
         layout.addWidget(self.label)
         self.setLayout(layout)
 
-    def draw_page(self, index: int = 0, colour: QtGui.QColor = QtGui.QColor("blue"), draw_tree_edges = False):
+    def draw_page(self, index: int = 0, colour: QtGui.QColor = QtGui.QColor("blue"), draw_tree_edges = True):
 
         element = None
         if(index < 0):
@@ -136,22 +136,23 @@ class SinglePageDisplay(QWidget):
                 y = int(anno.json_format[idx]['y'] * self.height / 100)
             return x, y, page
         
-        print("Drawing page ", page_idx)
-        for entry in anno.record:
-            if(entry['type'] == 'merge' or entry['type'] == 'subordinate'):
-                # print("type = ", entry['type'])
-                if(entry['type'] == 'merge'):
-                    painter.setPen(QtGui.QColor.fromRgb(255, 136, 0))
-                if(entry['type'] == 'subordinate'):
-                    painter.setPen(QtGui.QColor.fromRgb(0, 206, 38))
-                from_idx = entry['from']
-                to_idx = entry['to']
-                fx, fy, page_from = get_el_info(from_idx)
-                tx, ty, page_to = get_el_info(to_idx)
-                print(page_from)
-                if(page_from == page_to and page_from == page_idx):
-                    print(f"Drawing! type = {entry['type']}, width: {self.width}, height: {self.height}, fx = {fx}, fy = {fy}, tx = {tx}, ty = {ty}")
-                    painter.drawLine(fx, fy, tx, ty)
+        # print("Drawing page ", page_idx)
+        if(draw_tree_edges):
+            for entry in anno.record:
+                if(entry['type'] == 'merge' or entry['type'] == 'subordinate'):
+                    # print("type = ", entry['type'])
+                    if(entry['type'] == 'merge'):
+                        painter.setPen(QtGui.QColor.fromRgb(255, 136, 0))
+                    if(entry['type'] == 'subordinate'):
+                        painter.setPen(QtGui.QColor.fromRgb(0, 206, 38))
+                    from_idx = entry['from']
+                    to_idx = entry['to']
+                    fx, fy, page_from = get_el_info(from_idx)
+                    tx, ty, page_to = get_el_info(to_idx)
+                    print(page_from)
+                    if(page_from == page_to and page_from == page_idx):
+                        # print(f"Drawing! type = {entry['type']}, width: {self.width}, height: {self.height}, fx = {fx}, fy = {fy}, tx = {tx}, ty = {ty}")
+                        painter.drawLine(fx, fy, tx, ty)
         # Draw $ROOT element on first page
         x = y = width = height = None
         painter.setBrush(QtGui.QColor.fromHsvF(0, 0, 0, 0))
