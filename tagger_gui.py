@@ -67,7 +67,7 @@ class SinglePageDisplay(QWidget):
         layout.addWidget(self.label)
         self.setLayout(layout)
 
-    def draw_page(self, index: int = 0, colour: QtGui.QColor = QtGui.QColor("blue")):
+    def draw_page(self, index: int = 0, colour: QtGui.QColor = QtGui.QColor("blue"), draw_tree_edges = False):
 
         element = None
         if(index < 0):
@@ -90,6 +90,15 @@ class SinglePageDisplay(QWidget):
 
         painter.drawImage(0, 0, scaledImage)
 
+        def draw_box(element_, d):
+            painter.setBrush(QtGui.QColor.fromHsvF(d/10, 0.8, 0.8, 0.1)) #assuming that the max. dep does not go over 10
+            
+            x_, y_, width_, height_ = element_['x'], element_['y'], element_['width'], element_['height']
+            x_ = round(x_ * self.width / 100)
+            y_ = round(y_ * self.height / 100)
+            width_= round(width_ * self.width / 100)
+            height_ = round(height_ * self.height / 100)
+            painter.drawRect(x_, y_, width_, height_)
 
 
         # highlighting
@@ -101,14 +110,8 @@ class SinglePageDisplay(QWidget):
                 break 
             if(d == -1):
                 continue
-            painter.setBrush(QtGui.QColor.fromHsvF(d/10, 0.8, 0.8, 0.1)) #assuming that the max. dep does not go over 10
-            
-            x_, y_, width_, height_ = element_['x'], element_['y'], element_['width'], element_['height']
-            x_ = round(x_ * self.width / 100)
-            y_ = round(y_ * self.height / 100)
-            width_= round(width_ * self.width / 100)
-            height_ = round(height_ * self.height / 100)
-            painter.drawRect(x_, y_, width_, height_)
+            draw_box(element_, d)
+
         for i in range(index - 1, -1, -1):
             d = anno.depth[i]
             element_ = anno.json_format[i]
@@ -116,19 +119,43 @@ class SinglePageDisplay(QWidget):
                 break 
             if(d == -1):
                 continue
-            painter.setBrush(QtGui.QColor.fromHsvF(d/10, 0.8, 0.8, 0.1)) #assuming that the max. dep does not go over 10
-            
-            x_, y_, width_, height_ = element_['x'], element_['y'], element_['width'], element_['height']
-            x_ = round(x_ * self.width / 100)
-            y_ = round(y_ * self.height / 100)
-            width_= round(width_ * self.width / 100)
-            height_ = round(height_ * self.height / 100)
-            painter.drawRect(x_, y_, width_, height_)
+            draw_box(element_, d)
 
+        
+        # drawing parent nodes
+
+        def get_el_info(idx):
+            x, y, page = None, None, None 
+            if idx == -1:
+                page = 0
+                x = int(round(self.width * 0.4))
+                y = int(round(self.height * 0.05))
+            else:
+                page = anno.json_format[idx]['page']
+                x = int(anno.json_format[idx]['x'] * self.width / 100)
+                y = int(anno.json_format[idx]['y'] * self.height / 100)
+            return x, y, page
+        
+        print("Drawing page ", page_idx)
+        for entry in anno.record:
+            if(entry['type'] == 'merge' or entry['type'] == 'subordinate'):
+                # print("type = ", entry['type'])
+                if(entry['type'] == 'merge'):
+                    painter.setPen(QtGui.QColor.fromRgb(255, 136, 0))
+                if(entry['type'] == 'subordinate'):
+                    painter.setPen(QtGui.QColor.fromRgb(0, 206, 38))
+                from_idx = entry['from']
+                to_idx = entry['to']
+                fx, fy, page_from = get_el_info(from_idx)
+                tx, ty, page_to = get_el_info(to_idx)
+                print(page_from)
+                if(page_from == page_to and page_from == page_idx):
+                    print(f"Drawing! type = {entry['type']}, width: {self.width}, height: {self.height}, fx = {fx}, fy = {fy}, tx = {tx}, ty = {ty}")
+                    painter.drawLine(fx, fy, tx, ty)
+        # Draw $ROOT element on first page
         x = y = width = height = None
         painter.setBrush(QtGui.QColor.fromHsvF(0, 0, 0, 0))
         painter.setPen(colour)
-
         if(page_idx == 0):
             font_sz = 30
             x, y, width, height = round(self.width * 0.4), round(self.height * 0.05), font_sz * 5, font_sz
