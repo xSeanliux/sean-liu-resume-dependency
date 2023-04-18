@@ -149,7 +149,6 @@ class SinglePageDisplay(QWidget):
                     to_idx = entry['to']
                     fx, fy, page_from = get_el_info(from_idx)
                     tx, ty, page_to = get_el_info(to_idx)
-                    print(page_from)
                     if(page_from == page_to and page_from == page_idx):
                         # print(f"Drawing! type = {entry['type']}, width: {self.width}, height: {self.height}, fx = {fx}, fy = {fy}, tx = {tx}, ty = {ty}")
                         painter.drawLine(fx, fy, tx, ty)
