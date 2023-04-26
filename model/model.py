@@ -6,7 +6,6 @@ from torchmetrics import Accuracy
 import transformers
 import lightning.pytorch as pl
 from tqdm import tqdm
-
 class ResumeParser(pl.LightningModule):
     
     def positionalencoding1d(self, d_model, length):
@@ -42,7 +41,7 @@ class ResumeParser(pl.LightningModule):
             Dropout(p = args['classifier_dropout']),
         )  
         # self.pos_embeddings = Embedding(num_embeddings = 100, embedding_dim = args['positional_dim'])
-        self.pos_embeddings = self.positionalencoding1d(args['positional_dim'], 101).to('cuda:1') # .to('cuda') is a hacky workaround
+        self.pos_embeddings = self.positionalencoding1d(args['positional_dim'], 101) # .to('cuda') is a hacky workaround
         self.register_buffer('bbox_pos_embeddings', self.pos_embeddings, persistent=False)
         print("Device: ", self.device)
         # self.tokenizer = tokenizer
@@ -50,6 +49,21 @@ class ResumeParser(pl.LightningModule):
         self.running_loss = None
 
         self.ce_loss = CrossEntropyLoss()
+
+    def get_logits(self, batch):
+        inp_buf, inp_stk, pos, _ = batch 
+        pos_emb = self.pos_embeddings[pos] # B x 6 x D_pos
+        pos_emb = pos_emb.reshape((-1, 4 * self.args['positional_dim'])) # concatenate all positional embeddings
+        # print("pos_emb before shape: ", pos_emb.shape)
+        # pos_emb = pos_emb.sum(dim = 1) # sum the positional embeddings (B x D_pos)
+        # print("pos_emb after shape: ", pos_emb.shape)
+        # print("inp ids shape:", inp_buf['input_ids'].shape, "inp_buf type: ", type(inp_buf))
+        emb_buf = self.backend(**inp_buf)['pooler_output'] # B x D_backend
+        emb_stk = self.backend(**inp_stk)['pooler_output'] # B x D_backend
+        # print("Pos embedding shape: ", pos_emb.shape, ", emb_buf shape: ", emb_buf.shape, " emb_stk shape: ", emb_stk.shape)
+        classifier_inp = torch.cat((emb_buf + emb_stk, pos_emb), 1) # B x (D_backend + D_pos)
+        logits = self.classifier(classifier_inp)
+        return logits
         
     def get_logits_and_loss(self, batch):
         inp_buf, inp_stk, pos, typ = batch 

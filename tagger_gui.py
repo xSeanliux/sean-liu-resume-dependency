@@ -9,7 +9,6 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QPoint
 from PyQt6 import QtGui
-from tagger_program import get_file_name
 from annotation_object import AnnotationObject, deserialize, serialize
 import sys
 import os
@@ -19,6 +18,23 @@ from math import ceil
 
 anno = None
 dots_per_meter = None 
+
+def get_file_name():
+    while(True):
+        file_name = input("What file would you like to parse? (default path is in ./data/pdf/)>").strip()
+        if "/" not in file_name:
+            file_path = "./data/pdf/" + file_name
+        else:
+            file_path = file_name
+            file_name = file_path.split('/')[-1]
+        
+        print(f"file_path = {file_path}")
+        if os.path.isfile(file_path):
+            break
+        else:
+            print("Invalid file name. Please try again. >")
+
+    return file_name, file_path
 
 def save_and_exit():
     print("Exiting. Saving file.")
@@ -62,22 +78,13 @@ class SinglePageDisplay(QWidget):
         canvas.setDevicePixelRatio(self.pixelRatio) # using a retina display
         canvas.fill(Qt.GlobalColor.white)
         self.label.setPixmap(canvas)
-        self.draw_page()
         layout.addWidget(self.title)
         layout.addWidget(self.label)
         self.setLayout(layout)
 
-    def draw_page(self, index: int = 0, colour: QtGui.QColor = QtGui.QColor("blue"), draw_tree_edges = True):
+    def draw_page(self, page_idx: int = 0, colour: QtGui.QColor = QtGui.QColor("blue"), draw_tree_edges = True):
 
-        element = None
-        if(index < 0):
-            element = anno.json_format[0]
-        elif(index >= anno.n_lines):
-            element = anno.json_format[-1]
-        else:
-            element = anno.json_format[index]
-        page_idx = element['page']
-
+        print(f"Drawing page {page_idx}")
         canvas = self.label.pixmap()
         painter = QtGui.QPainter(canvas)
 
@@ -91,7 +98,11 @@ class SinglePageDisplay(QWidget):
         painter.drawImage(0, 0, scaledImage)
 
         def draw_box(element_, d):
-            painter.setBrush(QtGui.QColor.fromHsvF(d/10, 0.8, 0.8, 0.1)) #assuming that the max. dep does not go over 10
+            # highlighting the box
+            print(d)
+            if(d == -1): # discard operation
+                return
+            painter.setBrush(QtGui.QColor.fromHsvF(min(d/10, 1), 0.8, 0.8, 0.1)) #assuming that the max. dep does not go over 10
             
             x_, y_, width_, height_ = element_['x'], element_['y'], element_['width'], element_['height']
             x_ = round(x_ * self.width / 100)
@@ -103,26 +114,13 @@ class SinglePageDisplay(QWidget):
 
         # highlighting
         painter.setPen(QtGui.QColor.fromHsvF(0, 0, 0, 0)) #no boundary on highlights
-        for i in range(max(0, index), anno.n_lines):
+        for i in range(anno.n_lines):
             d = anno.depth[i]
             element_ = anno.json_format[i]
-            if(element_['page'] != page_idx):
+            if(element_['page'] > page_idx):
                 break 
-            if(d == -1):
-                continue
-            draw_box(element_, d)
-
-        for i in range(index - 1, -1, -1):
-            d = anno.depth[i]
-            element_ = anno.json_format[i]
-            if(element_['page'] != page_idx):
-                break 
-            if(d == -1):
-                continue
-            draw_box(element_, d)
-
-        
-        # drawing parent nodes
+            if(element_['page'] == page_idx):
+                draw_box(element_, d)
 
         def get_el_info(idx):
             x, y, page = None, None, None 
@@ -163,16 +161,29 @@ class SinglePageDisplay(QWidget):
             font.setPixelSize(font_sz)
             painter.setFont(font)
             painter.drawText(QPoint(x, y + height), "$ROOT")
-
-        if(index >= 0):
+        # draw box around buffer element
+        
+        def draw_box_element(index):
+            # drawing a box around the current element
+            to_draw_page = 0 if index == -1 else anno.json_format[index]['page']
+            if(to_draw_page != page_idx):
+                return
+            x, y, width, height = None, None, None, None
             painter.setPen(colour)
-            x, y, width, height = element['x'], element['y'], element['width'], element['height']
-            x = round(x * self.width / 100)
-            y = round(y * self.height / 100)
-            width = round(width * self.width / 100)
-            height = round(height * self.height / 100)
+            if(index >= 0):
+                element = anno.json_format[index]
+                x, y, width, height = element['x'], element['y'], element['width'], element['height']
+                x = round(x * self.width / 100)
+                y = round(y * self.height / 100)
+                width = round(width * self.width / 100)
+                height = round(height * self.height / 100)
+            else:
+                x, y, width, height = round(self.width * 0.4), round(self.height * 0.05), font_sz * 5, font_sz
 
-        painter.drawRect(x, y, width, height)
+            painter.drawRect(x, y, width, height)
+            
+        draw_box_element(anno.stack[-1])
+        draw_box_element(min(anno.current_idx, anno.n_pages - 1))
         painter.end()
         self.label.setPixmap(canvas)
 
@@ -195,6 +206,7 @@ class MainWidget(QWidget):
         pages_layout = QHBoxLayout()
         footer_layout = QHBoxLayout()
         self.options = OptionsMenu()
+
         self.stackpage = SinglePageDisplay("Stack View")
         self.bufferpage = SinglePageDisplay("Buffer View")
 
@@ -221,9 +233,12 @@ class MainWindow(QMainWindow):
         self.mainWidget = MainWidget()
         self.setCentralWidget(self.mainWidget)
 
+        self.stack_idx = 0
+        self.buffer_idx = 0
+
         self.mainWidget.set_footer_text(self.instructions)
-        self.mainWidget.stackpage.draw_page(anno.stack[-1])
-        self.mainWidget.bufferpage.draw_page(anno.current_idx)
+        self.mainWidget.stackpage.draw_page(self.stack_idx)
+        self.mainWidget.bufferpage.draw_page(self.buffer_idx)
 
     def keyPressEvent(self, e):
         res = e.text().lower()
@@ -247,9 +262,21 @@ class MainWindow(QMainWindow):
             res_string = "QUIT - Saving File..."
             self.setWindowTitle(res_string)
             sys.exit(0)
+        
 
-        self.mainWidget.stackpage.draw_page(anno.stack[-1])
-        self.mainWidget.bufferpage.draw_page(anno.current_idx)
+        self.stack_idx = 0 if anno.stack[-1] == -1 else anno.json_format[anno.stack[-1]]['page']
+        self.buffer_idx = anno.json_format[min(anno.current_idx, anno.n_pages - 1)]['page']
+        if(e.key() == Qt.Key.Key_Left.value):
+            print(f"Buffer idx was {self.buffer_idx}")
+            self.buffer_idx = max(self.buffer_idx - 1, 0)
+            print(f"Now {self.buffer_idx}")
+        if(e.key() == Qt.Key.Key_Right.value):
+            print(f"Buffer idx was {self.buffer_idx}")
+            self.buffer_idx = min(self.buffer_idx + 1, anno.n_pages - 1)
+            print(f"Now {self.buffer_idx}")
+            
+        self.mainWidget.stackpage.draw_page(self.stack_idx)
+        self.mainWidget.bufferpage.draw_page(self.buffer_idx)
 
         self.setWindowTitle(self.instructions + res_string)
             

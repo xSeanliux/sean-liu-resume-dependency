@@ -47,22 +47,7 @@ def run_annotation(file_path):
     return
     # raise NotImplementedError
 
-def get_file_name():
-    while(True):
-        file_name = input("What file would you like to parse? (default path is in ./data/pdf/)>").strip()
-        if "/" not in file_name:
-            file_path = "./data/pdf/" + file_name
-        else:
-            file_path = file_name
-            file_name = file_path.split('/')[-1]
-        
-        print(f"file_path = {file_path}")
-        if os.path.isfile(file_path):
-            break
-        else:
-            print("Invalid file name. Please try again. >")
 
-    return file_name, file_path
 
 if __name__ == "__main__":
     while(True):

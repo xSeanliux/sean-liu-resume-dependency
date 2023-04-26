@@ -2,7 +2,6 @@
 from pdf_wrapper import PDFWrapper
 import pickle as pkl
 from PIL.ImageQt import ImageQt
-import sys
 import os
 
 def serialize(anno_object):
@@ -39,12 +38,13 @@ class AnnotationObject:
     # }
     current_idx = 0 # current_idx: the current object being processed
     n_lines = 0
+    n_pages = 0
     stack = [] # stack is the stack being used, records the indices only, -1 is root
     qt_image_list = None
     
     def subordinate_action(self):
         if(self.is_done):
-            return
+            return 0
         
         self.record.append({ 
             'from': self.current_idx, 
@@ -52,45 +52,49 @@ class AnnotationObject:
             'type': 'subordinate' 
         })
 
-        self.depth[self.current_idx] = 0 if self.stack[-1] == -1 else self.depth[self.stack[-1]] + 1
+        self.depth[self.current_idx] = 1 if self.stack[-1] == -1 else self.depth[self.stack[-1]] + 1
+        # root has depth 0
 
         self.stack.append(self.current_idx)
         self.current_idx += 1
 
         self.is_done = (self.current_idx == self.n_lines)
+        return 0
     
     def merge_action(self):
         if(self.is_done):
-            return
+            return 0
         if(self.stack[-1] == -1):
-            return
+            return 1
         
         self.record.append({ 
             'from': self.current_idx, 
             'to': self.stack[-1], 
             'type': 'merge' 
         })
-        self.depth[self.current_idx] = self.depth[self.stack[-1]]
+        self.depth[self.current_idx] = 0 if self.stack[-1] == -1 else self.depth[self.stack[-1]]
         self.stack.pop() # representative element is the last line of the whole entry
         self.stack.append(self.current_idx)
         self.current_idx += 1
 
         self.is_done = (self.current_idx == self.n_lines)
+        return 0
 
     def pop_action(self):
         if(len(self.stack) <= 1):
             print("Tried to pop ROOT or stack was empty.")
-            return
+            return 1
         self.record.append({ 
             'from': self.current_idx, 
             'to': self.stack[-1], 
             'type': 'pop' 
         })
         self.stack.pop()
+        return 0
     
     def discard(self):
         if(self.is_done):
-            return
+            return 0
         self.record.append({
             'from': self.current_idx,
             'to': self.stack[-1],
@@ -99,11 +103,12 @@ class AnnotationObject:
         self.depth[self.current_idx] = -1
         self.current_idx += 1
         self.is_done = (self.current_idx == self.n_lines)
+        return 0
     
     def undo(self):
         if(len(self.record) == 0):
             print("Unable to undo as there are currently no recorded actions.")
-            return
+            return 1
         last_obj = self.record.pop()
         operation_type = last_obj['type']
         if(operation_type == 'pop'):
@@ -120,7 +125,7 @@ class AnnotationObject:
             self.stack.pop()
             
         self.is_done = (self.current_idx == self.n_lines)
-
+        return 0
 
     def get_prompt(self):
         top_element = self.json_format[self.stack[-1]]['text'] if self.stack[-1] != -1 else "ROOT"
@@ -139,6 +144,8 @@ class AnnotationObject:
             self.json_format = self.wrapper.get_json()
             
             self.n_lines = len(self.json_format)
+            self.n_pages = len(self.wrapper.lines)
+            print("Document has ", self.n_pages, "pages")
             self.depth = [-1] * self.n_lines
             self.qt_image_list = [ImageQt(img) for img in self.wrapper.pil_image_list]
             # print(f"Size of one qt image: {sys.getsizeof(self.qt_image_list[0])}, PIL image size: {sys.getsizeof(self.wrapper.pil_image_list[0])}")

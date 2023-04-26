@@ -1,7 +1,4 @@
-import pdfminer
-import sys
 import matplotlib.patches as patches
-from bs4 import BeautifulSoup
 from pdf2image import convert_from_path
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,8 +6,6 @@ from pdfminer.high_level import extract_pages
 from pdfminer.layout import LTTextContainer, LTTextLineHorizontal
 from tqdm import tqdm
 from pdfminer.layout import LAParams
-from PIL.ImageQt import ImageQt
-from PyQt6.QtGui import QImage
 from math import ceil
 import functools
 
