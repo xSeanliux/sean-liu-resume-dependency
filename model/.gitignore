@@ -1,2 +1,3 @@
-./lightning_logs/*
+lightning_logs/*
 *.ckpt
+*.yaml
