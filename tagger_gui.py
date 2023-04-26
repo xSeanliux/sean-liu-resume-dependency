@@ -82,7 +82,7 @@ class SinglePageDisplay(QWidget):
         layout.addWidget(self.label)
         self.setLayout(layout)
 
-    def draw_page(self, page_idx: int = 0, colour: QtGui.QColor = QtGui.QColor("blue"), draw_tree_edges = True):
+    def draw_page(self, page_idx: int = 0, item_idx: int = 0, colour: QtGui.QColor = QtGui.QColor("blue"), draw_tree_edges = True):
 
         print(f"Drawing page {page_idx}")
         canvas = self.label.pixmap()
@@ -99,7 +99,7 @@ class SinglePageDisplay(QWidget):
 
         def draw_box(element_, d):
             # highlighting the box
-            print(d)
+            # print(d)
             if(d == -1): # discard operation
                 return
             painter.setBrush(QtGui.QColor.fromHsvF(min(d/10, 1), 0.8, 0.8, 0.1)) #assuming that the max. dep does not go over 10
@@ -164,8 +164,12 @@ class SinglePageDisplay(QWidget):
         # draw box around buffer element
         
         def draw_box_element(index):
-            # drawing a box around the current element
-            to_draw_page = 0 if index == -1 else anno.json_format[index]['page']
+            # drawing a box around the current element (line)
+            to_draw_page = 0
+            if(0 <= to_draw_page < len(anno.json_format)):
+                to_draw_page = anno.json_format[index]['page']
+            elif (to_draw_page >= len(anno.json_format)):
+                to_draw_page = anno.json_format[anno.json_format[-1]]['page']
             if(to_draw_page != page_idx):
                 return
             x, y, width, height = None, None, None, None
@@ -182,8 +186,7 @@ class SinglePageDisplay(QWidget):
 
             painter.drawRect(x, y, width, height)
             
-        draw_box_element(anno.stack[-1])
-        draw_box_element(min(anno.current_idx, anno.n_pages - 1))
+        draw_box_element(item_idx)
         painter.end()
         self.label.setPixmap(canvas)
 
@@ -237,8 +240,8 @@ class MainWindow(QMainWindow):
         self.buffer_idx = 0
 
         self.mainWidget.set_footer_text(self.instructions)
-        self.mainWidget.stackpage.draw_page(self.stack_idx)
-        self.mainWidget.bufferpage.draw_page(self.buffer_idx)
+        self.mainWidget.stackpage.draw_page(page_idx = self.stack_idx, item_idx = anno.stack[-1])
+        self.mainWidget.bufferpage.draw_page(page_idx = self.buffer_idx, item_idx = anno.current_idx)
 
     def keyPressEvent(self, e):
         res = e.text().lower()
@@ -265,7 +268,7 @@ class MainWindow(QMainWindow):
         
 
         self.stack_idx = 0 if anno.stack[-1] == -1 else anno.json_format[anno.stack[-1]]['page']
-        self.buffer_idx = anno.json_format[min(anno.current_idx, anno.n_pages - 1)]['page']
+        self.buffer_idx = anno.json_format[min(anno.current_idx, len(anno.json_format) - 1)]['page']
         if(e.key() == Qt.Key.Key_Left.value):
             print(f"Buffer idx was {self.buffer_idx}")
             self.buffer_idx = max(self.buffer_idx - 1, 0)
@@ -275,8 +278,9 @@ class MainWindow(QMainWindow):
             self.buffer_idx = min(self.buffer_idx + 1, anno.n_pages - 1)
             print(f"Now {self.buffer_idx}")
             
-        self.mainWidget.stackpage.draw_page(self.stack_idx)
-        self.mainWidget.bufferpage.draw_page(self.buffer_idx)
+        self.mainWidget.stackpage.draw_page(page_idx = self.stack_idx, item_idx = anno.stack[-1])
+        self.mainWidget.bufferpage.draw_page(page_idx = self.buffer_idx, item_idx = anno.current_idx)
+
 
         self.setWindowTitle(self.instructions + res_string)
             
