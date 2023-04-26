@@ -36,7 +36,7 @@ class ResumeParser(pl.LightningModule):
         self.backend = backend 
         self.args = args
 
-        self.input_dim = 4 * args['positional_dim']
+        self.input_dim = 4 * args['positional_dim'] + 4 # 4 for the style
         if args['use_llm']:
             args += self.backend.config.hidden_size
         
@@ -61,17 +61,16 @@ class ResumeParser(pl.LightningModule):
         self.ce_loss = CrossEntropyLoss()
 
     def get_logits(self, batch):
-        inp_buf, inp_stk, pos, _ = batch 
+        inp_buf, inp_stk, pos, sty, _ = batch 
         pos_emb = self.pos_embeddings[pos] # B x 6 x D_pos
         pos_emb = pos_emb.reshape((-1, 4 * self.args['positional_dim'])) # concatenate all positional embeddings
         classifier_inp = None
         if self.args['use_llm']:
             emb_buf = self.backend(**inp_buf)['pooler_output'] # B x D_backend
             emb_stk = self.backend(**inp_stk)['pooler_output'] # B x D_backend
-            classifier_inp = torch.cat((emb_buf + emb_stk, pos_emb), 1) # B x (D_backend + D_pos)
+            classifier_inp = torch.cat((emb_buf + emb_stk, sty, pos_emb), 1) # B x (D_backend + D_pos)
         else:
-            _, _, pos, _ = batch
-            classifier_inp = pos_emb
+            classifier_inp = torch.cat((sty, pos_emb), 1) 
 
         
         # print("pos_emb before shape: ", pos_emb.shape)
@@ -85,7 +84,7 @@ class ResumeParser(pl.LightningModule):
         return logits
         
     def get_logits_and_loss(self, batch):
-        _, _, _, typ = batch
+        _, _, _, _, typ = batch
         logits = self.get_logits(batch)
         loss = self.ce_loss(logits, typ)
         return logits, loss
@@ -100,7 +99,7 @@ class ResumeParser(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        _, _, _, typ = batch 
+        typ = batch[-1]
         logits, loss = self.get_logits_and_loss(batch)
         preds = torch.argmax(logits, dim = 1)
         # print("logits shape:", logits.shape, ", preds.shape: ", preds.shape)

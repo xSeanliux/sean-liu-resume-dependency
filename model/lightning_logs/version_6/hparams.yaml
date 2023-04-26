@@ -1,6 +1,0 @@
-args:
-  positional_dim: 32
-  hidden_dim: 256
-  classifier_dropout: 0.3
-  num_classes: 4
-  n_hidden: 1

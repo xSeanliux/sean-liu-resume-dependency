@@ -13,5 +13,6 @@ class ResumeDataset(Dataset):
     def __getitem__(self, idx):
         element = self.df.iloc[idx]
         pos = torch.floor(torch.Tensor([element.lbuf, element.rbuf, element.lstk, element.rstk])).long()
-        return element.buf_str, element.stk_str, pos, label_idx[element.type]
+        sty = torch.Tensor([element.italbuf, element.boldbuf, element.italstk, element.boldstk]).long()
+        return element.buf_str, element.stk_str, pos, sty, label_idx[element.type]
 
