@@ -20,17 +20,10 @@ class PDFWrapper:
     # 2. As such, when sorting the lines by their coordinates (LAParams(boxes_flow = None) on line 29), individual entries are in consecutive lines and all we have to do is to merge them
 
 
-    elements = []
-    lines = []
-    page_height = 0
-    page_width = 0
-    page_count = 0
+    
     render_dpi = 100
     pdfminer_factor = render_dpi / 72   # pdfminer gives all bounding boxes assuming 72dpi, so we have to apply this correction
     dots_per_meter = ceil(render_dpi * 39.37) # qimage uses dots_per_meter, and there are roughly 39.37 inches in a meter...
-
-
-    pil_image_list = None # A list of PIL images
 
     def line_cmp(self, l1, l2):
         bbox1 = l1.bbox 
@@ -42,7 +35,13 @@ class PDFWrapper:
         return y2 - y1 # higher y values are higher up and should be first
 
     def __init__(self, fname, laparams_ = LAParams(boxes_flow = None)):
+        self.elements = []
+        self.lines = []
+        self.page_height = 0
+        self.page_width = 0
+        self.page_count = 0
 
+        pil_image_list = None # A list of PIL images
         print("Using laparams = ", laparams_)
         for page_layout in tqdm(extract_pages(fname, laparams = laparams_, caching = False)):
             page_elements = []

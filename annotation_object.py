@@ -24,23 +24,7 @@ def deserialize(pkl_file_path):
 
 
 class AnnotationObject: 
-    file_path = None
-    record = []
-    depth = []
-    wrapper = None
-    json_format = None
-    is_done = False
-    # record contains objects which look like 
-    # {
-    #     'from': (number, index)
-    #     'to': (number, index)
-    #     type: string, one of ('subordinate', 'merge', 'pop')
-    # }
-    current_idx = 0 # current_idx: the current object being processed
-    n_lines = 0
-    n_pages = 0
-    stack = [] # stack is the stack being used, records the indices only, -1 is root
-    qt_image_list = None
+    
     
     def subordinate_action(self):
         if(self.is_done):
@@ -133,7 +117,24 @@ class AnnotationObject:
         return f"ACTION #{len(self.record)} TOP: <{top_element}> / BUF: <{buffered_element}>"
     
     def __init__(self, file_path_ = None):
-
+        self.file_path = None
+        self.record = []
+        self.depth = []
+        self.wrapper = None
+        self.json_format = None
+        self.is_done = False
+        # record contains objects which look like 
+        # {
+        #     'from': (number, index)
+        #     'to': (number, index)
+        #     type: string, one of ('subordinate', 'merge', 'pop')
+        # }
+        self.current_idx = 0 # current_idx: the current object being processed
+        self.n_lines = 0
+        self.n_pages = 0
+        self.stack = [] # stack is the stack being used, records the indices only, -1 is root
+        self.qt_image_list = None
+        
         if file_path_ is not None:
             self.file_path = file_path_
             self.record = []
