@@ -6,6 +6,11 @@ from torchmetrics import Accuracy
 import transformers
 import lightning.pytorch as pl
 from tqdm import tqdm
+
+
+
+
+
 class ResumeParser(pl.LightningModule):
     
     def positionalencoding1d(self, d_model, length):
@@ -30,8 +35,13 @@ class ResumeParser(pl.LightningModule):
         super().__init__()
         self.backend = backend 
         self.args = args
+
+        self.input_dim = 4 * args['positional_dim']
+        if args['use_llm']:
+            args += self.backend.config.hidden_size
+        
         self.classifier = nn.Sequential(
-            Linear(in_features = self.backend.config.hidden_size + 4 * args['positional_dim'], out_features = args['hidden_dim']),
+            Linear(in_features = self.input_dim, out_features = args['hidden_dim']),
             Dropout(p = args['classifier_dropout']),
             ReLU(),
             Linear(in_features = args['hidden_dim'], out_features = args['hidden_dim']), #n_hidden = 1 hardcoded
@@ -41,7 +51,7 @@ class ResumeParser(pl.LightningModule):
             Dropout(p = args['classifier_dropout']),
         )  
         # self.pos_embeddings = Embedding(num_embeddings = 100, embedding_dim = args['positional_dim'])
-        self.pos_embeddings = self.positionalencoding1d(args['positional_dim'], 101) # .to('cuda') is a hacky workaround
+        self.pos_embeddings = self.positionalencoding1d(args['positional_dim'], 101).to('cuda:2') #is a hacky workaround
         self.register_buffer('bbox_pos_embeddings', self.pos_embeddings, persistent=False)
         print("Device: ", self.device)
         # self.tokenizer = tokenizer
@@ -54,30 +64,29 @@ class ResumeParser(pl.LightningModule):
         inp_buf, inp_stk, pos, _ = batch 
         pos_emb = self.pos_embeddings[pos] # B x 6 x D_pos
         pos_emb = pos_emb.reshape((-1, 4 * self.args['positional_dim'])) # concatenate all positional embeddings
+        classifier_inp = None
+        if self.args['use_llm']:
+            emb_buf = self.backend(**inp_buf)['pooler_output'] # B x D_backend
+            emb_stk = self.backend(**inp_stk)['pooler_output'] # B x D_backend
+            classifier_inp = torch.cat((emb_buf + emb_stk, pos_emb), 1) # B x (D_backend + D_pos)
+        else:
+            _, _, pos, _ = batch
+            classifier_inp = pos_emb
+
+        
         # print("pos_emb before shape: ", pos_emb.shape)
         # pos_emb = pos_emb.sum(dim = 1) # sum the positional embeddings (B x D_pos)
         # print("pos_emb after shape: ", pos_emb.shape)
         # print("inp ids shape:", inp_buf['input_ids'].shape, "inp_buf type: ", type(inp_buf))
-        emb_buf = self.backend(**inp_buf)['pooler_output'] # B x D_backend
-        emb_stk = self.backend(**inp_stk)['pooler_output'] # B x D_backend
+        
         # print("Pos embedding shape: ", pos_emb.shape, ", emb_buf shape: ", emb_buf.shape, " emb_stk shape: ", emb_stk.shape)
-        classifier_inp = torch.cat((emb_buf + emb_stk, pos_emb), 1) # B x (D_backend + D_pos)
+        
         logits = self.classifier(classifier_inp)
         return logits
         
     def get_logits_and_loss(self, batch):
-        inp_buf, inp_stk, pos, typ = batch 
-        pos_emb = self.pos_embeddings[pos] # B x 6 x D_pos
-        pos_emb = pos_emb.reshape((-1, 4 * self.args['positional_dim'])) # concatenate all positional embeddings
-        # print("pos_emb before shape: ", pos_emb.shape)
-        # pos_emb = pos_emb.sum(dim = 1) # sum the positional embeddings (B x D_pos)
-        # print("pos_emb after shape: ", pos_emb.shape)
-        # print("inp ids shape:", inp_buf['input_ids'].shape, "inp_buf type: ", type(inp_buf))
-        emb_buf = self.backend(**inp_buf)['pooler_output'] # B x D_backend
-        emb_stk = self.backend(**inp_stk)['pooler_output'] # B x D_backend
-        # print("Pos embedding shape: ", pos_emb.shape, ", emb_buf shape: ", emb_buf.shape, " emb_stk shape: ", emb_stk.shape)
-        classifier_inp = torch.cat((emb_buf + emb_stk, pos_emb), 1) # B x (D_backend + D_pos)
-        logits = self.classifier(classifier_inp)
+        _, _, _, typ = batch
+        logits = self.get_logits(batch)
         loss = self.ce_loss(logits, typ)
         return logits, loss
 
