@@ -19,6 +19,7 @@ from math import ceil
 anno = None
 dots_per_meter = None 
 
+
 def get_file_name():
     while(True):
         file_name = input("What file would you like to parse? (default path is in ./data/pdf/)>").strip()
