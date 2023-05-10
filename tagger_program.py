@@ -7,6 +7,10 @@ import atexit
 file_name = None
 anno = None
 
+# This is the text-based tagger program. 
+# DEPRECATED: Please use tagger_gui.py instead! 
+# Will delete this file once I make sure no other files depend on it.
+
 def run_annotation(file_path):
     print("Running annotation.")
     anno = AnnotationObject()
