@@ -51,7 +51,7 @@ class ResumeParser(pl.LightningModule):
             Dropout(p = args['classifier_dropout']),
         )  
         # self.pos_embeddings = Embedding(num_embeddings = 100, embedding_dim = args['positional_dim'])
-        self.pos_embeddings = self.positionalencoding1d(args['positional_dim'], 101).to('cuda:2') #is a hacky workaround
+        self.pos_embeddings = self.positionalencoding1d(args['positional_dim'], 101) #is a hacky workaround
         self.register_buffer('bbox_pos_embeddings', self.pos_embeddings, persistent=False)
         print("Device: ", self.device)
         # self.tokenizer = tokenizer
@@ -68,9 +68,9 @@ class ResumeParser(pl.LightningModule):
         if self.args['use_llm']:
             emb_buf = self.backend(**inp_buf)['pooler_output'] # B x D_backend
             emb_stk = self.backend(**inp_stk)['pooler_output'] # B x D_backend
-            classifier_inp = torch.cat((emb_buf + emb_stk, sty, pos_emb), 1) # B x (D_backend + D_pos)
+            classifier_inp = torch.cat((emb_buf + emb_stk, sty, pos_emb), -1) # B x (D_backend + D_pos)
         else:
-            classifier_inp = torch.cat((sty, pos_emb), 1) 
+            classifier_inp = torch.cat((sty, pos_emb), -1) 
 
         
         # print("pos_emb before shape: ", pos_emb.shape)

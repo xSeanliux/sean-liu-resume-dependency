@@ -166,10 +166,10 @@ class SinglePageDisplay(QWidget):
         def draw_box_element(index):
             # drawing a box around the current element (line)
             to_draw_page = 0
-            if(0 <= to_draw_page < len(anno.json_format)):
+            if(index >= len(anno.json_format)):
+                index = len(anno.json_format) - 1
+            if(0 <= index ):
                 to_draw_page = anno.json_format[index]['page']
-            elif (to_draw_page >= len(anno.json_format)):
-                to_draw_page = anno.json_format[anno.json_format[-1]]['page']
             if(to_draw_page != page_idx):
                 return
             x, y, width, height = None, None, None, None
@@ -267,17 +267,17 @@ class MainWindow(QMainWindow):
             sys.exit(0)
         
 
-        self.stack_idx = 0 if anno.stack[-1] == -1 else anno.json_format[anno.stack[-1]]['page']
-        self.buffer_idx = anno.json_format[min(anno.current_idx, len(anno.json_format) - 1)]['page']
         if(e.key() == Qt.Key.Key_Left.value):
             print(f"Buffer idx was {self.buffer_idx}")
             self.buffer_idx = max(self.buffer_idx - 1, 0)
             print(f"Now {self.buffer_idx}")
-        if(e.key() == Qt.Key.Key_Right.value):
+        elif(e.key() == Qt.Key.Key_Right.value):
             print(f"Buffer idx was {self.buffer_idx}")
             self.buffer_idx = min(self.buffer_idx + 1, anno.n_pages - 1)
             print(f"Now {self.buffer_idx}")
-            
+        else:
+            self.stack_idx = 0 if anno.stack[-1] == -1 else anno.json_format[anno.stack[-1]]['page']
+            self.buffer_idx = anno.json_format[min(anno.current_idx, len(anno.json_format) - 1)]['page']
         self.mainWidget.stackpage.draw_page(page_idx = self.stack_idx, item_idx = anno.stack[-1])
         self.mainWidget.bufferpage.draw_page(page_idx = self.buffer_idx, item_idx = anno.current_idx)
 
