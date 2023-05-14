@@ -9,6 +9,15 @@ from pdfminer.layout import LAParams
 from math import ceil
 import functools
 
+'''
+This is the PDFWrapper class, providing basic functionality to raw PDFs, such as extracting lines, ordering them, etc. 
+'''
+
+
+'''
+Helper function, converts everything to percentages in their original input order 
+'''
+
 def convert_to_ls(x, y, width, height, original_width, original_height):
     return x / original_width * 100.0, y / original_height * 100.0, \
            width / original_width * 100.0, height / original_height * 100
@@ -21,22 +30,30 @@ class PDFWrapper:
 
 
     
-    render_dpi = 100
+    render_dpi = 100 # Change this but if too high, the resulting file will be huge
     pdfminer_factor = render_dpi / 72   # pdfminer gives all bounding boxes assuming 72dpi, so we have to apply this correction
     dots_per_meter = ceil(render_dpi * 39.37) # qimage uses dots_per_meter, and there are roughly 39.37 inches in a meter...
 
     def line_cmp(self, l1, l2):
+        # Sorts two lines based on y-coordinate first and x-coordinate second
         bbox1 = l1.bbox 
         bbox2 = l2.bbox 
         x1, y1 = bbox1[0], bbox1[1]
         x2, y2 = bbox2[0], bbox2[1]
-        if abs(y1 - y2) < 5:
+        if abs(y1 - y2) < 5: # Two lines are considered to be on the same y-level if their y-coords vary by < 5. 
             return x1 - x2
         return y2 - y1 # higher y values are higher up and should be first
 
+    '''
+    Initialiser for PDFWrapper, takes in a file name to a PDF and LAParams
+    @param fname: a string, a path to the desired PDF file
+    @LAParams   : used to specify how PDFMiner will extract lines, 
+    For more information, see https://pdfminersix.readthedocs.io/en/latest/reference/composable.html?highlight=LAParams#laparams
+    '''
     def __init__(self, fname, laparams_ = LAParams(boxes_flow = None)):
         self.elements = []
         self.lines = []
+        # The above are two dimensional: lines[i][j] indicates the j-th line of the i-th page.
         self.page_height = 0
         self.page_width = 0
         self.page_count = 0
@@ -74,6 +91,13 @@ class PDFWrapper:
         y0 = self.page_height - y0 - height
         return x0, y0, width, height
 
+    '''
+    Renders the raw PDF using matplotlib, used in tagger_gui.py
+    @param page     : the page that is being rendered
+    @param ax       : the matplotlib ax to be rendered on 
+    @render_boxes   : whether to render boxes around each line
+    @render_arrows  : whether to render arrows to indicate line sort order 
+    '''
     def render_page(self, page, ax = None, render_boxes = True, render_arrows = True):
         assert 0 <= page < self.page_count
 
@@ -94,6 +118,7 @@ class PDFWrapper:
             
         return ax
     
+    # Deprecated but may still be useful
     def get_ydiff_distribution(self):
         # @param objs: a 2D array (n_pages, n_elements). 
         # @return: a list of all the y-differences collected per page and then aggregated.
