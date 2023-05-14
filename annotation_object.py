@@ -192,27 +192,18 @@ class AnnotationObject:
             self.qt_image_list = [ImageQt(img) for img in self.wrapper.pil_image_list]
             print(f"Length of dep: {len(self.depth)}")
 
-    def get_qt_and_box(self, line_idx):
-        # @param line_idx: the index of the line being rendered, in the annotations
-        if(line_idx == -1):
-            # $ROOT
-            line_idx = 0
 
-        line = self.json_format[line_idx]
-        page_idx = line['page']
-        idx_in_page = line['idx_in_page']
-        res = ImageQt(self.wrapper.pil_image_lst[page_idx])
-
+    '''
+    Custom getstate without qt_image_list (because the size of that list is HUGE) for serialise()
+    '''
     def __getstate__(self):
         cpy = self.__dict__.copy()
         del cpy['qt_image_list']
         return cpy
     
+    '''
+    Corresponding setter for the above
+    '''
     def __setstate__(self, d):
         self.__dict__ = d
         self.qt_image_list = [ImageQt(img) for img in self.wrapper.pil_image_list]
-
-
-
-    def print_data(self):
-        print(f"STACK: {self.stack[:3]}, currentidx = {self.current_idx}")
