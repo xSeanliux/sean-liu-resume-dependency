@@ -9,12 +9,16 @@ from tqdm import tqdm
 
 
 
-
+'''
+The Model lightning module! 
+Should probably be split into a model/module
+'''
 
 class ResumeParser(pl.LightningModule):
     
     def positionalencoding1d(self, d_model, length):
         """
+        Sinusodal positional encoding used for the l, r, and h parameters; Not trainable. 
         :param d_model: dimension of the model
         :param length: length of positions
         :return: length*d_model position matrix
@@ -51,7 +55,7 @@ class ResumeParser(pl.LightningModule):
             Dropout(p = args['classifier_dropout']),
         )  
         # self.pos_embeddings = Embedding(num_embeddings = 100, embedding_dim = args['positional_dim'])
-        self.pos_embeddings = self.positionalencoding1d(args['positional_dim'], 101) #is a hacky workaround
+        self.pos_embeddings = self.positionalencoding1d(args['positional_dim'], 101) #is a hacky workaround, but works for l, r in [0, 100]
         self.register_buffer('bbox_pos_embeddings', self.pos_embeddings, persistent=False)
         print("Device: ", self.device)
         # self.tokenizer = tokenizer
