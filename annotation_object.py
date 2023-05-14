@@ -4,6 +4,17 @@ import pickle as pkl
 from PIL.ImageQt import ImageQt
 import os
 
+'''
+This file is the annotation object
+A wrapper for the pdf wrapper to support the annotation of files (shift-based)
+The main class is AnnotationObject. 
+'''
+
+'''
+This function serialises the annotation object into a .pkl file, with the filename being the same as
+the original pdf file just with a different extension.
+@param anno_object: the AnnotationObject to serialise
+'''
 def serialize(anno_object):
     print(f"Serializing... {anno_object}")
     if anno_object is not None:
@@ -14,7 +25,9 @@ def serialize(anno_object):
     else:
         print("Error! anno object is None!")
 
-        
+'''
+Deserialises an AnnotationObject from a given .pkl path.
+'''
 def deserialize(pkl_file_path):
     print(f"{pkl_file_path} exists: {os.path.exists(pkl_file_path)}, stats = {os.stat(pkl_file_path)}")
     assert len(pkl_file_path) > 4 and pkl_file_path[-4:] == ".pkl"
@@ -24,8 +37,11 @@ def deserialize(pkl_file_path):
 
 
 class AnnotationObject: 
-    
-    
+
+
+    '''
+    Implements the SUBORDINATE action.
+    '''
     def subordinate_action(self):
         if(self.is_done):
             return 0
@@ -45,6 +61,9 @@ class AnnotationObject:
         self.is_done = (self.current_idx == self.n_lines)
         return 0
     
+    '''
+    Implements the MERGE action.
+    '''
     def merge_action(self):
         if(self.is_done):
             return 0
@@ -64,6 +83,9 @@ class AnnotationObject:
         self.is_done = (self.current_idx == self.n_lines)
         return 0
 
+    '''
+    Implements the POP action.
+    '''
     def pop_action(self):
         if(len(self.stack) <= 1):
             print("Tried to pop ROOT or stack was empty.")
@@ -76,6 +98,9 @@ class AnnotationObject:
         self.stack.pop()
         return 0
     
+    '''
+    Implements the DISCARD action.
+    '''
     def discard(self):
         if(self.is_done):
             return 0
@@ -89,6 +114,13 @@ class AnnotationObject:
         self.is_done = (self.current_idx == self.n_lines)
         return 0
     
+    '''
+    Implements the UNDO action. 
+
+    Undos the last operation. Note that this operation is not stored, so you cannot undo undos. 
+    This function is for human use only; machines do not make mistakes (only happy errors) and thus
+    do not need UNDOs. 
+    '''
     def undo(self):
         if(len(self.record) == 0):
             print("Unable to undo as there are currently no recorded actions.")
@@ -111,11 +143,20 @@ class AnnotationObject:
         self.is_done = (self.current_idx == self.n_lines)
         return 0
 
+    '''
+    Returns a prompt hint; was more useful when we had a text-only interface, but now is more decorational than practical.
+    '''
     def get_prompt(self):
         top_element = self.json_format[self.stack[-1]]['text'] if self.stack[-1] != -1 else "ROOT"
         buffered_element = self.json_format[self.current_idx]['text'] if self.current_idx < self.n_lines else "END"
         return f"ACTION #{len(self.record)} TOP: <{top_element}> / BUF: <{buffered_element}>"
     
+
+    '''
+    Initialiser of the class which takes in a path to a PDF file.
+    
+    @param file_path_: path to .pdf file. 
+    '''
     def __init__(self, file_path_ = None):
         self.file_path = None
         self.record = []
@@ -149,8 +190,8 @@ class AnnotationObject:
             print("Document has ", self.n_pages, "pages")
             self.depth = [-1] * self.n_lines
             self.qt_image_list = [ImageQt(img) for img in self.wrapper.pil_image_list]
-            # print(f"Size of one qt image: {sys.getsizeof(self.qt_image_list[0])}, PIL image size: {sys.getsizeof(self.wrapper.pil_image_list[0])}")
             print(f"Length of dep: {len(self.depth)}")
+
     def get_qt_and_box(self, line_idx):
         # @param line_idx: the index of the line being rendered, in the annotations
         if(line_idx == -1):
