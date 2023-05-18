@@ -1,0 +1,176 @@
+% This must be in the first 5 lines to tell arXiv to use pdfLaTeX, which is strongly recommended.
+\pdfoutput=1
+% In particular, the hyperref package requires pdfLaTeX in order to break URLs across lines.
+
+\documentclass[11pt]{article}
+
+% Remove the "review" option to generate the final version.
+\usepackage{ACL2023}
+
+% Standard package includes
+\usepackage{times}
+\usepackage{latexsym}
+
+% For proper rendering and hyphenation of words containing Latin characters (including in bib files)
+\usepackage[T1]{fontenc}
+% For Vietnamese characters
+% \usepackage[T5]{fontenc}
+% See https://www.latex-project.org/help/documentation/encguide.pdf for other character sets
+
+% This assumes your files are encoded as UTF8
+\usepackage[utf8]{inputenc}
+
+% This is not strictly necessary, and may be commented out.
+% However, it will improve the layout of the manuscript,
+% and will typically save some space.
+\usepackage{microtype}
+
+% This is also not strictly necessary, and may be commented out.
+% However, it will improve the aesthetics of text in
+% the typewriter font.
+\usepackage{inconsolata}
+
+
+\usepackage{graphicx}
+
+% If the title and author information does not fit in the area allocated, uncomment the following
+%
+%\setlength\titlebox{<dim>}
+%
+% and set <dim> to something 5cm or larger.
+
+\title{Fast Few-shot Line-level Resume Dependency Parsing}
+
+% Author information can be set in various styles:
+% For several authors from the same institution:
+% \author{Author 1 \and ... \and Author n \\
+%         Address line \\ ... \\ Address line}
+% if the names do not fit well on one line use
+%         Author 1 \\ {\bf Author 2} \\ ... \\ {\bf Author n} \\
+% For authors from different institutions:
+% \author{Author 1 \\ Address line \\  ... \\ Address line
+%         \And  ... \And
+%         Author n \\ Address line \\ ... \\ Address line}
+% To start a seperate ``row'' of authors use \AND, as in
+% \author{Author 1 \\ Address line \\  ... \\ Address line
+%         \AND
+%         Author 2 \\ Address line \\ ... \\ Address line \And
+%         Author 3 \\ Address line \\ ... \\ Address line}
+
+\author{Sean Liu \and Kevin Chang\\
+  University of Illinois Urbana-Champaign\\
+  \texttt{zxliu2@illinois.edu} \\}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+We propose a simple shift-based dependency parsing algorithm for academic resumes. The algorithm only uses positional data, and runs in linear time in relation to the document size. Training in a few-shot (around 10 resumes) setting yields strong performance (92\% classification accuracy) despite using a low amount of information. We make the case that this algorithm is a strong baseline and serves as a proof-of-concept for further study.
+\end{abstract}
+
+\section{Introduction}
+
+Document understanding has long been an active area of study, though until recently, the reading and understanding of documents have belonged to separate fields (computer vision; natural language programming). The former problem deals with the conversion of raw visual data into machine-readable formats such as raw text, JSON files, etc., while the latter tries to make sense of the semantics of the document itself, often requiring the document to be already processed. Now, multimodal models are emerging which combine the two tasks into an end-to-end framework, capable of reading in raw pixels (and perhaps a prompt) as input and performing complex tasks such as question answering on given that data  \citep{huang2022layoutlmv3,lee2022pix2struct, kim2021ocr}. Numerous datasets with varying parameters which all centre around this more advanced task of multimodal document understanding have also been developed \citep{mathew2021docvqa,mathew2022infographicvqa,park2019cord}.
+
+We will be focusing on a specific subset of this problem: the task of \emph{academic resume parsing}. We believe that the constraints of this problem are such that previous conventional methods are not sufficient to tackle it. In particular, we note the following about academic resumes: 
+\begin{enumerate}
+	\item Length: academics are often highly decorated and accomplished individuals, and their resumes reflect this fact: they often are upwards of ten pages long, with many resumes being around thirty pages. This presents an issue for transformers-based systems, as they often cannot handle extremely long documents due to memory constraints. While variations of transformers \citep{liu2021swin, peng2021random} have been developed that require less resources, common long-term dependencies makes a naive use of transformers a bad choice, since many optimisations are built on the assumption that long-distance dependencies are rare and do not affect performance. 
+	\item Structure: As opposed to the diverse nature of documents that a general-purpose document understanding model may have to process, academic documents are generally computer-generated (as opposed to handwritten or scanned), single-columned, and well-behaved. Thus, more specialised heuristics may be employed to take advantage of these features.
+\end{enumerate}
+In light of the above observations, we propose a transition-based dependency parser \citep{dozat2018simpler} to extract the semantic relations between lines of a resume. We found that positional and stylistic data (bounding boxes, fonts) alone yields promising results, while using dense semantic representations from BERT \citep{devlin2018bert} confused the model, in a few-shot setting. Being able to extract the intrinsic tree \emph{structure} of documents is an important stepping stone in document analysis, as the data may now be more readily analysed, for example, in extracting the education background of an individual, or listing out the publications of said individual. In addition, it may not always be feasible to employ large models, and in this context, smaller models approaching the performance of such models are of utmost importance in guaranteeing performance and efficiency. Recent work has shown blind scaling of models to be suboptimal \citep{hoffmann2022training}; the pruning and distillation of models \citep{xia2022structured, sanh2019distilbert} remain active areas of research.
+
+In short, our main contributions can be summarised as follows:
+\begin{enumerate}
+	\item The development and collection of a resume dataset for dependency analysis, along with a custom annotator;
+	\item showing that positional and stylistic information are strong predictors of structure within a resume;
+	\item extraction of not just the individual coherent elements of a document, but also the hierarchical relations between them;
+	\item showing that neural methods are effective in learning structural information even when the number of resumes is low (though each resume may have thousands of lines and transitions themselves).
+\end{enumerate}
+\section{Related Work}
+
+This work is built upon the foundation of much work that has been done in various other related fields, such as document segmentation, understanding, and dependency parsing. 
+
+\subsection{Document Segmentation}
+	Multiple segmentation algorithms have been proposed over the years, starting with heuristics such as geometric clustering and whitespace analysis - a recent survey is given in \citet{binmakhashen2019document}. \citet{cai2003vips} proposed a website segmentation algorithm which takes in visual and DOM Tree input. More recently, vision methods based on deep neural nets been dominant with architectures such as convolutional neural nets (CNNs, \citet{li2021survey, xu2021page}) and vision transformers (ViTs, \citet{han2022survey}) being the new state-of-the-art. More generally, this is a subset of the more general task of image segmentation, which aims to segment objects from all sorts of images \citep{kirillov2023segment}. Note also that this method does not give the \emph{relations} of the elements being extracted, just which elements there are.
+\subsection{Multimodal learning}
+	Multimodal learning refers to the inputs to some algorithm not being restricted to one form of data - in our case, not just text or images. \citet{radford2021learning} proposed to use contrastive learning to align text and image data, and recently, end-to-end document understanding systems such as LayoutLMv3 \citep{huang2022layoutlmv3}, Pix2Struct \citep{lee2022pix2struct}, Formnet \citep{lee2022formnet}, amongst others \citep{kim2022ocr, davis2023end}.
+\subsection{Dependency Parsing}
+	Dependency parsing is one of the problems that used to compose the NLP pipeline but has mostly been phased out due to the power of large language models (LLMs), but saw a flurry of neural-powered development around a decade ago. Transition-based \citep{dozat2018simpler} and graph-based \citep{mcdonald2005non} algorithms are the two main paradigms to solve this task, and multiple augmentations to the two algorithms have been added to the base idea in the years following: StackLSTMs \citep{dyer2015transition}, biaffine attention \citep{dozat2016deep}, and more recently, stack transformers \citep{astudillo2020transition}. \citet{hwang2020spatial} is closely related to, but ultimately differnet from, this work, parsing general documents using a graph-based approach.
+\section{Proposed Method}
+\subsection{Problem Definition}
+We define a document as $\mathcal{D} = \{\ell_i\}_{i = 1}^{N}$, where $\ell_i$ are the lines (or elements) of $\mathcal{D}$, and $\ell_0$ is the root element, denoted $\textsc{Root}$. We will also assume that there is also an underlying \emph{semantic tree} $\mathcal{T}(\mathcal{D})$ (denoted $\mathcal{T}$ when context is apparent). This tree is defined as a set of $M \le N$ directed edges between the element: $\mathcal{T} = \{e_j = (u_j, v_j, t_j)\}_{j = 1}^{M}$, where $e_j$ is an edge from $\ell_{u_j}$ to $\ell_{v_j}$, and $t_j$ is one of two types: 
+\begin{enumerate}
+	\item $t_j = \textsc{Subordinate}$: $\ell_{u_j}$ is a subordinate of $\ell_{v_j}$;
+	\item $t_j = \textsc{Merge}$: $\ell_{u_j}$ belongs to the same semantic unit as $\ell_{v_j}$, and their strings should be concatenated with $\ell_{v_j}$ first.
+\end{enumerate}
+In addition, $\mathcal{T}$ should define a directed tree rooted at $\ell_0$, but need not use all of the elements (for example, page numbers may be safely discarded without affecting the contents of the resume). Finally, we will assume that the order that the lines are in corresponds to some DFS ordering of $\mathcal{T}$. Our goal is to retrieve (or estimate) $\mathcal{T}$ given the document $\mathcal{D}$. 
+
+\subsection{Method}
+\subsubsection{Data Collection}
+As of the time of writing of this article, there is no currently known dataset of resumes with dependencies at the line level. As such, about 10 resumes were collected from University of Illinois professors in the Computer Science and Linguistics departments (each resume contained on the order of a few thousand lines, and so the total training instance size was quite large, if rather biased). Afterwards, a custom annotation and visualisation interface was written to enable manual annotation of these documents, and annotation of the resumes was completed. 
+
+\subsubsection{Shift-based parsing algorithm}
+
+Following \citep{dozat2018simpler}, we implement a shift-based dependency parser with a stack and a buffer. The algorithm starts with the root element in the stack, and every iteration, the system decides one of the following actions to be taken: 
+\begin{enumerate}
+	\item $\textsc{Pop}$: Pops the top element from the stack. 
+	\item $\textsc{Merge}$: Merges the current buffer element into the top stack element
+	\item $\textsc{Subordinate}$: Indicates that the buffer element is a subordinate of the stack element; pushes the buffer element to the stack
+	\item $\textsc{Discard}$: Discards the current buffer element.
+\end{enumerate}
+We may then formulate this problem as a \emph{classification problem}: given some extracted features, can the system correctly classify the action to take? We measure performance using classification accuracy. 
+
+The algorithm terminates once the buffer is empty.
+
+\subsubsection{Feature engineering}
+We only used features from the current buffer element and the element at the top of the stack, and we extracted the following features: 
+\begin{enumerate}
+	\item Semantic information: for each element, we took the BERT \citep{devlin2018bert} embedding to encode semantic data. However, this turned out to be unfruitful, and we hypothesize that in addition to the data being scarce, text data from resumes are too highly formatted for BERT to extract useful information. 
+	\item Positional information: we included positional information of the left, right, and height values of each box, the intuition being that the justification and font sizes are important in determining the relation of two elements. Following \citep{vaswani2017attention}, we opted to pass in positional data not as raw numbers or percentages, but as a sinusodal vector of length $32$. 
+	\item Stylistic information: we also checked if the text was in bold or in italics, as we hypothesised that stylised text would correspond more to headers. 
+\end{enumerate}
+
+\section{Experimental Results}
+
+Training with positional and stylistic information, we found that the model could achieve a training and validation classification error of $92\%$, while performance capped at around $70\%$ if semantic information from BERT was included. We also tested on resumes that were not in the training set, and found that the results heavily depended on if the resumes were structured in a similar way as previously seen documents. We think that this is evidence in favour of the fact that structural information can be learnt effectively, and that the semantics of the document itself may not be that important in the extraction of structure; in addition this seems to imply that if more diverse resumes were introduced, then the model would be effective in extracting resume from a more diverse set of resumes in turn.
+\section{Conclusion}
+
+We have shown that typographical data can be a strong predictor of document structure, and that systems can be built which extract the relevant structure trees from said documents. This can be done in a few-shot environment without too much computational overhead - a 20-page long CV can be parsed in a few seconds on the author's laptop. It's important to note that this subtask can be seen as a generalisation of the usual segmentation task, as not only are the relevant sections extracted, but so are their hierarchical relations. Through the structure of a document, we may then run a number of different algorithms with greater effiency - for example, the quality and quantity of edges greatly affect graph neural network (GNN)-based networks \citep{scarselli2008graph, gemelli2023doc2graph}, and a recent survey can be found in \citet{wu2023graph}.
+
+\section{Future Work}
+
+Although we have introduced a potential avenue of research, it is by no means conclusive, and many potential methods and applications remain to be investigated. For example, incorporating semantic or even raw visual data in the stack parsing algorithm, letting the algorithm see information from previous/posterior elements in both the stack and buffer \citep{dyer2015transition}, and expanding to other domains are all potential research topics. Investigating additional applications of this general method may also prove fruitful. 
+
+
+\bibliographystyle{acl_natbib}
+\bibliography{custom}
+\appendix
+
+\section{Appendix}
+\label{sec:appendix}
+
+\subsection{The annotation interface}
+The annotation interface enables both human annotation (see \ref{fig:human_annotation}) and the display of machine parsing results (see \ref{fig:machine_parsing_good} and \ref{fig:machine_parsing_bad}). The root element (in blue) is shown at the top of the first page, and lines are colour-coded based on tree depth. Green lines denote hierarchical relations ($\textsc{Subordinate}$), and orange lines between nodes indicate a $\textsc{Merge}$ operation.
+
+Comparing figures \ref{fig:machine_parsing_good} and \ref{fig:machine_parsing_bad}, we see that the former is much more like what we would expect the output to be, while the latter often gets confused. For example, it judges many lines in the Publications section to be their own elements, while they should be one coherent element; the second bad example shows the stack growing uncontrollably instead of being all siblings of a header node. In such cases, we hypothesise that it would benefit the model if additional information about the state of the stack or buffer were included. 
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics*[width=0.5\textwidth]{images/demo\_manual}
+	\caption{The annotation interface with a manual parsing result}
+	\label{fig:human_annotation}
+\end{figure}
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics*[width=0.5\textwidth]{images/demo\_machine\_good}
+	\caption{A better machine parsing result}
+	\label{fig:machine_parsing_good}
+	\includegraphics*[width=0.5\textwidth]{images/demo\_machine\_bad}
+	\includegraphics*[width=0.5\textwidth]{images/demo\_machine\_bad2}
+	\caption{Worse machine parsing results}
+	\label{fig:machine_parsing_bad}
+	
+\end{figure}
+
+
+\end{document}
