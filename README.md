@@ -44,7 +44,7 @@ This was developed using python version 3.10 and 3.11. Also provided is a `requi
     └── requirements.txt
 ```
 
-(software to draw the ASCII tree)[https://tree.nathanfriend.io/]
+[software to draw the ASCII tree](https://tree.nathanfriend.io/)
 
 ## Functional Design (Usage)
 
