@@ -94,9 +94,10 @@ TODO
 We make some assumptions about the nature of the PDFs that we extract: 
 1. The text of the resumes can be extracted without the use of OCR software - that is, they were computer-born (for example, generated using typesetting software). 
 2. The resumes themeselves are single-column. 
-3. There is an underlying hierarchical tree structure underlying the resume, with individual items (such as publications) being subordinated under headers and sub-headers, exempli gratia, `$ROOT -> Publications -> Books -> To Be Published -> Harry Potter and Goblet of Azkaban`. 
+3. There is an underlying hierarchical tree structure underlying the resume, with individual items (such as publications) being subordinated under headers and sub-headers, exempli gratia, `$ROOT -> Publications -> Books -> To Be Published -> Harry Potter and Goblet of Azkaban`. In addition, that the lines are *some* preorder ordering of this underlying tree (that is, projective structure, etc.)
 ### PDF Extraction 
 
+We first extract all the lines of said PDF and sort by the $y$-position
 
 ## Issues and Future Work
 
