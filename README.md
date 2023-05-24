@@ -119,7 +119,7 @@ More features (e.g. semantic, visual, global) are also potential lines of future
 
 ### Future Work
 * Compilation of a bigger ($N > 10^2$) set of training data to faciliate further training 
-* Integration of more features (semantic, visual, global) to the parser, potentially by using backbone architectures such as[LayoutLMv3](https://arxiv.org/abs/2204.08387).
+* Integration of more features (semantic, visual, global) to the parser, potentially by using backbone architectures such as [LayoutLMv3](https://arxiv.org/abs/2204.08387), or using stronger regularisation methods such as a Bag of Word method (since headers are common and are repeated over different resumes, e.g. "Publications"), or using NER to mask out entity names, leaving only the *fact that there is an entity here*. 
 * Case studies to demonstrate effectiveness of this proposed method in downstream tasks such as information extraction
 
 
