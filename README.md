@@ -8,7 +8,7 @@ This project comprises of two main parts:
 
 ### Environment
 
-This was developed using python version 3.10 and 3.11. Also provided is a `requirements.txt` file - please run 
+This was developed using Python version 3.10 and 3.11. Also provided is a `requirements.txt` file - please run 
 ```conda create --name resume_dependency --file ./requirements.txt```
 . An ARM Macbook Pro & UNIX machine were used in developement. In addition, if you want to finetune the model or perform evaluation, please make sure you have the correct `.ckpt` file under `model/`. 
 
@@ -75,14 +75,28 @@ After annotation, a corresponding `.pkl` file will be generated with the same fi
 #### Training 
 You will find most of the configuration and training scripts inside `model/experiment.ipynb`, while the model itself and the LightningModule is defined inside `model/model.py`. Run `model/experiment.ipynb` to start training. 
 
-**IMPORTANT**: I couldn't get multicore training to work, so in the trainer definition
+**IMPORTANT**: I couldn't get multicore training to work, so in the trainer definition towards the end of the file,
 ```python
 trainer = pl.Trainer(accelerator="gpu", devices=[2], val_check_interval = 0.5)
 ```
 , please change `devices` to the number of your own GPU that you'd like to use, for example, to `devices=[0]`. You could alternatively just use the CPU to train. You may find more information in the PyTorch Lightning [docs](https://lightning.ai/docs/pytorch/stable/accelerators/gpu_basic.html).
+
+#### Evaluation 
+
+If you're not using a pretrained checkpoint, you can get the training weights in `model/lightning_logs/<run name>/` after running training. Move the desired `.ckpt` checkpoint file to `model/` and follow the instructions in `frontend.ipynb`. 
+
+To view the parsing results, you can run the viewer using `python3 tagger_gui.py`. 
 ## Demo video
 
+TODO
+
 ## Algorithmic Design 
+We make some assumptions about the nature of the PDFs that we extract: 
+1. The text of the resumes can be extracted without the use of OCR software - that is, they were computer-born (for example, generated using typesetting software). 
+2. The resumes themeselves are single-column. 
+3. There is an underlying hierarchical tree structure underlying the resume, with individual items (such as publications) being subordinated under headers and sub-headers, exempli gratia, `$ROOT -> Publications -> Books -> To Be Published -> Harry Potter and Goblet of Azkaban`. 
+### PDF Extraction 
+
 
 ## Issues and Future Work
 
