@@ -95,10 +95,32 @@ We make some assumptions about the nature of the PDFs that we extract:
 1. The text of the resumes can be extracted without the use of OCR software - that is, they were computer-born (for example, generated using typesetting software). 
 2. The resumes themeselves are single-column. 
 3. There is an underlying hierarchical tree structure underlying the resume, with individual items (such as publications) being subordinated under headers and sub-headers, exempli gratia, `$ROOT -> Publications -> Books -> To Be Published -> Harry Potter and Goblet of Azkaban`. In addition, that the lines are *some* preorder ordering of this underlying tree (that is, projective structure, etc.)
-### PDF Extraction 
+### PDF Extraction & Annotation
 
-We first extract all the lines of said PDF and sort by the $y$-position
+We first extract all the lines of said PDF and sort by the $y$-position (to account for parsing errors, two lines are considered to have the same $y$-position if they do not differ by more than some set constant, we take 5), and then by $x$-position. We assume that this is the relevant preorder ordering to reconstruct. 
+
+* Note: this is not always ideal, as some resumes satisfying the first two assumptions may not satisfy the third. Nevertheless, we have found empirically that this is a reasonable approximation.
+
+Using the annotation software (usage detailed above), we may construct a rooted tree out of the document with the root at `$ROOT`, an extra sentinel element. This is our training data, which will be collated using `pkl_to_json.ipynb`. It current only contains local information from the buffer and stack (i.e. position, bounding boxes, style, etc.) - incorporating global data is a line of future work! 
+
+### Model 
+
+Our model for parsing is a shift-based dependency parser: because a single resume may contain thousands of lines, algorithms which take quadratic time use too much overhead, and since we assume that our parse will be non-projective, doesn't really justify the additional computational cost. It takes in a number of features and classifies the best action in the scenario. Features include (for both the stack and buffer elements): 
+* line height
+* horizontal line positions (left & right edges), given in sinusoidal encodings
+* style encodings (e.g. italic or bold)
+* semantic encodings (from an LLM like BERT; this has not been shown to be very helpful in a low-data setting)
+More features (e.g. semantic, visual, global) are also potential lines of future reserach.
 
 ## Issues and Future Work
+
+### Known issues
+* While using the annotation software on Mac (unsure about other OSes), pressing the Command key immediately shifts both views to the last page, reason unknown
+
+### Future Work
+* Compilation of a bigger ($N > 10^2$) set of training data to faciliate further training 
+* Integration of more features (semantic, visual, global) to the parser, potentially by using backbone architectures such as[LayoutLMv3](https://arxiv.org/abs/2204.08387).
+* Case studies to demonstrate effectiveness of this proposed method in downstream tasks such as information extraction
+
 
 ## Change log
