@@ -44,10 +44,7 @@ class ResumeParser(pl.LightningModule):
             Linear(in_features = self.input_dim, out_features = args['hidden_dim']),
             Dropout(p = args['classifier_dropout']),
             ReLU(),
-            Linear(in_features = args['hidden_dim'], out_features = args['hidden_dim']), #n_hidden = 1 hardcoded
-            Dropout(p = args['classifier_dropout']),
-            ReLU(),
-            Linear(in_features = args['hidden_dim'], out_features = args['num_classes']),
+            Linear(in_features = args['hidden_dim'], out_features = args['num_classes']), #n_hidden = 1 hardcoded
             Dropout(p = args['classifier_dropout']),
         )  
         # self.pos_embeddings = Embedding(num_embeddings = 100, embedding_dim = args['positional_dim'])
