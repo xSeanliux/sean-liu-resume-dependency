@@ -16,10 +16,16 @@ import atexit
 
 from math import ceil
 
+# This file runs the graphical annotator/viewer program
+# Usage: ./tagger_gui.py
+
 anno = None
 dots_per_meter = None 
 
+# Gets the path of the PDF file to be viewed/annotated through user input in the terminal
+# Is ran at the start of the program.
 def get_file_name():
+    
     while(True):
         file_name = input("What file would you like to parse? (default path is in ./data/pdf/)>").strip()
         if "/" not in file_name:
@@ -36,16 +42,20 @@ def get_file_name():
 
     return file_name, file_path
 
+
+# Cleanup function for when program exits. 
 def save_and_exit():
     print("Exiting. Saving file.")
     if anno is not None:
-        # print(f"Size of anno is {sys.getsizeof(anno.__dict__)}")
         serialize(anno)
     else:
         print("Anno is None!")
     return
 atexit.register(save_and_exit)
 
+# Initialises the annotation object (anno) given a PDF file path
+# If a corresponding .pkl file is found, loads it;
+# Else, initialise from scratch
 def init_anno(pdf_file_path):
     assert len(pdf_file_path) > 4 and pdf_file_path[-4:] == ".pdf"
     global anno 
@@ -61,7 +71,10 @@ def init_anno(pdf_file_path):
         print("Loading from file path.")
         anno = AnnotationObject(pdf_file_path)
 
+# The class for a single page (the stack/buffer views)
 class SinglePageDisplay(QWidget):
+    # initialising function
+    # @param title: a the title of the page (stack/buffer) to be displayed
     def __init__(self, title):
         super().__init__()
         self.height = 840   # height is constant
@@ -81,6 +94,13 @@ class SinglePageDisplay(QWidget):
         layout.addWidget(self.title)
         layout.addWidget(self.label)
         self.setLayout(layout)
+
+
+    # draws the page itself, with all its lines, hierarchy lines, etc.
+    # @param page_idx       : the index of the page to draw 
+    # @param item_idx       : the index of the item (line) to draw (if the line is not on the page to draw, it is not drawn)
+    # @param colour         : the colour of the box around the line to be highlighted (item_idx) 
+    # @param draw_tree_edges: True iff tree edges are to be drawn
 
     def draw_page(self, page_idx: int = 0, item_idx: int = 0, colour: QtGui.QColor = QtGui.QColor("blue"), draw_tree_edges = True):
 
@@ -122,6 +142,10 @@ class SinglePageDisplay(QWidget):
             if(element_['page'] == page_idx):
                 draw_box(element_, d)
 
+        # helper function to get ELement INFO.
+        # @param    idx : the index of the line to return info about 
+        # @return   x, y: positions (real value from 0 to 1) of the upper-left position 
+        # @retunrn  page: the page that the element is on
         def get_el_info(idx):
             x, y, page = None, None, None 
             if idx == -1:
@@ -134,7 +158,7 @@ class SinglePageDisplay(QWidget):
                 y = int(anno.json_format[idx]['y'] * self.height / 100)
             return x, y, page
         
-        # print("Drawing page ", page_idx)
+        # Draw tree edges
         if(draw_tree_edges):
             for entry in anno.record:
                 if(entry['type'] == 'merge' or entry['type'] == 'subordinate'):
@@ -150,6 +174,7 @@ class SinglePageDisplay(QWidget):
                     if(page_from == page_to and page_from == page_idx):
                         # print(f"Drawing! type = {entry['type']}, width: {self.width}, height: {self.height}, fx = {fx}, fy = {fy}, tx = {tx}, ty = {ty}")
                         painter.drawLine(fx, fy, tx, ty)
+
         # Draw $ROOT element on first page
         x = y = width = height = None
         painter.setBrush(QtGui.QColor.fromHsvF(0, 0, 0, 0))
@@ -166,10 +191,10 @@ class SinglePageDisplay(QWidget):
         def draw_box_element(index):
             # drawing a box around the current element (line)
             to_draw_page = 0
-            if(0 <= to_draw_page < len(anno.json_format)):
+            if(index >= len(anno.json_format)):
+                index = len(anno.json_format) - 1
+            if(0 <= index ):
                 to_draw_page = anno.json_format[index]['page']
-            elif (to_draw_page >= len(anno.json_format)):
-                to_draw_page = anno.json_format[anno.json_format[-1]]['page']
             if(to_draw_page != page_idx):
                 return
             x, y, width, height = None, None, None, None
@@ -190,6 +215,7 @@ class SinglePageDisplay(QWidget):
         painter.end()
         self.label.setPixmap(canvas)
 
+# Displays the options (helper text)
 class OptionsMenu(QWidget):
     def __init__(self):
         super().__init__()
@@ -202,6 +228,7 @@ class OptionsMenu(QWidget):
     def set_text(self, text):
         self.footer.setText(text)   
 
+# The wrapper around all widgets
 class MainWidget(QWidget):
     def __init__(self):
         super().__init__()
@@ -225,6 +252,7 @@ class MainWidget(QWidget):
     def set_footer_text(self, text):
         self.options.set_text(text)
 
+# The main application, in charge of housing widgets and carrying out IO
 class MainWindow(QMainWindow):
 
     instructions = "[s]ubordinate/1; [m]erge/2; [p]op/3; [u]ndo/4; [d]iscard/5; [q]uit"
@@ -267,17 +295,17 @@ class MainWindow(QMainWindow):
             sys.exit(0)
         
 
-        self.stack_idx = 0 if anno.stack[-1] == -1 else anno.json_format[anno.stack[-1]]['page']
-        self.buffer_idx = anno.json_format[min(anno.current_idx, len(anno.json_format) - 1)]['page']
         if(e.key() == Qt.Key.Key_Left.value):
             print(f"Buffer idx was {self.buffer_idx}")
             self.buffer_idx = max(self.buffer_idx - 1, 0)
             print(f"Now {self.buffer_idx}")
-        if(e.key() == Qt.Key.Key_Right.value):
+        elif(e.key() == Qt.Key.Key_Right.value):
             print(f"Buffer idx was {self.buffer_idx}")
             self.buffer_idx = min(self.buffer_idx + 1, anno.n_pages - 1)
             print(f"Now {self.buffer_idx}")
-            
+        else:
+            self.stack_idx = 0 if anno.stack[-1] == -1 else anno.json_format[anno.stack[-1]]['page']
+            self.buffer_idx = anno.json_format[min(anno.current_idx, len(anno.json_format) - 1)]['page']
         self.mainWidget.stackpage.draw_page(page_idx = self.stack_idx, item_idx = anno.stack[-1])
         self.mainWidget.bufferpage.draw_page(page_idx = self.buffer_idx, item_idx = anno.current_idx)
 

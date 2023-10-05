@@ -4,7 +4,9 @@ import pandas as pd
 import torch 
 
 
-
+'''
+The ResumeDataset class wraps the .json file generated from pkl_to_json.ipynb into a PyTorch Dataset.
+'''
 class ResumeDataset(Dataset):
     def __init__(self, data_dir):
         self.df = pd.read_json(data_dir)
